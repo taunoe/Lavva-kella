@@ -3,6 +3,8 @@
  *  Circuit Sculpture "Lavva kellä"
  *  File: main.cpp
  *  Board: Wemos D1 mini lite
+ * 
+ *  Description:  
  *
  *  Copyright 2021 Tauno Erik
  *  https://taunoerik.art
@@ -29,6 +31,12 @@
  *  1 - Low
  ********************************************************************/
 
+// NTP - Network Time Protocol
+// UTC - Coordinated Universal Time.
+// UTC does not vary, it is the same world wide
+// UDP - User Datagram Protocol. Port 123
+// https://lastminuteengineers.com/esp8266-ntp-server-date-time-tutorial/
+
 /* Includes */
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
@@ -36,12 +44,6 @@
 #include "wifi-secrets.h"  // Wifi ssid passwords
 #include <NTPClient.h>  // https://github.com/arduino-libraries/NTPClient
 #include <WiFiUdp.h>
-
-// NTP - Network Time Protocol
-// UTC - Coordinated Universal Time.
-// UTC does not vary, it is the same world wide
-// UDP - User Datagram Protocol. Port 123
-// https://lastminuteengineers.com/esp8266-ntp-server-date-time-tutorial/
 
 /* Enable debug Serial.print */
 #define DEBUGno
@@ -63,6 +65,10 @@ const uint32_t WIFI_TIMEOUT = 5000;  // ms
 // For UTC +2.00 : 2 * 60 * 60 : 7200
 const uint32_t UTC_OFFSET = 7200;  // seconds //long
 
+// NTP Terms of Service: https://www.pool.ntp.org/tos.html
+const uint32_t UPDATE_INTERVAL = 60000*59*25;  // 1min = 60000ms
+
+const int BUZZER_PIN = D1;
 // Shift register pins
 const int DATA_PIN  = D7;  // D0 <- does not work!
 const int LATCH_PIN = D5;
@@ -104,7 +110,7 @@ WiFiUDP ntpUDP;
 // You can specify the time server pool and the offset, (in seconds)
 // additionaly you can specify the update interval (in milliseconds).
 // NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600, 60000);
-NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", UTC_OFFSET);
+NTPClient NTP_time(ntpUDP, "europe.pool.ntp.org", UTC_OFFSET, UPDATE_INTERVAL);
 
 
 /******************************************************************* 
@@ -409,6 +415,7 @@ void setup() {
   Serial.begin(115200);
 
   // Pins
+  pinMode(BUZZER_PIN, OUTPUT);
   pinMode(LATCH_PIN, OUTPUT);
   pinMode(DATA_PIN, OUTPUT);
   pinMode(CLOCK_PIN, OUTPUT);
@@ -425,21 +432,23 @@ void setup() {
   wifiMulti.addAP(Secrets::ssd3, Secrets::pass3);
   wifiMulti.addAP(Secrets::ssd4, Secrets::pass4);
 
-  // NTP time
-  timeClient.begin();
+  NTP_time.begin();
 
   print_info();
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(50);
+  digitalWrite(BUZZER_PIN, LOW);
+  //delay(50);
 }
 
 void loop() {
   check_wifi();
 
-  // NTP time
-  timeClient.update();
-  // Serial.println(timeClient.getFormattedTime());
-  h = timeClient.getHours();
-  m = timeClient.getMinutes();
-  s = timeClient.getSeconds();
+  NTP_time.update();
+  // Serial.println(NTP_time.getFormattedTime());
+  h = NTP_time.getHours();
+  m = NTP_time.getMinutes();
+  s = NTP_time.getSeconds();
 
   my_clock::run();
 
