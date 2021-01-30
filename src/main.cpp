@@ -8,7 +8,7 @@
  *  https://taunoerik.art
  *
  *  Started: 25.01.2021
- *  Edited:  29.01.2021
+ *  Edited:  30.01.2021
  **/
 
 /******************************************************************** 
@@ -31,8 +31,19 @@
 
 /* Includes */
 #include <Arduino.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
+#include "wifi-secrets.h"  // Wifi ssid passwords
+#include <NTPClient.h>  // https://github.com/arduino-libraries/NTPClient
+#include <WiFiUdp.h>
 
-/* Enable debug info: Serial print */
+// NTP - Network Time Protocol
+// UTC - Coordinated Universal Time.
+// UTC does not vary, it is the same world wide
+// UDP - User Datagram Protocol. Port 123
+// https://lastminuteengineers.com/esp8266-ntp-server-date-time-tutorial/
+
+/* Enable debug Serial.print */
 #define DEBUGno
 #ifdef DEBUG
   #define DEBUG_PRINT(x)  Serial.print(x)
@@ -42,7 +53,15 @@
   #define DEBUG_PRINTLN(x)
 #endif
 
-/* Config */
+/******************************************************************* 
+ * Configurations
+ *******************************************************************/
+
+// WiFi connect timeout per AP. Increase when connecting takes longer.
+const uint32_t WIFI_TIMEOUT = 5000;  // ms
+
+// For UTC +2.00 : 2 * 60 * 60 : 7200
+const uint32_t UTC_OFFSET = 7200;  // seconds //long
 
 // Shift register pins
 const int DATA_PIN  = D7;  // D0 <- does not work!
@@ -62,18 +81,39 @@ uint8_t dataframe[NUMBER_OF_7SEGS] = {
   0b11111111, 0b11111111,  // 'CC. [4], [5]
 };
 
-
-// Clock second
+// Clock
 const int SECOND = 1000;
 uint32_t prev_millis {};
 boolean is_second = false;
 boolean is_clock_dots = true;  // 00:00:00
-// Clock time
+
 int h {};  // hours
 int m {};  // minutes
 int s {};  // seconds
 
 
+/************************************
+ * 
+ ************************************/
+
+ESP8266WiFiMulti wifiMulti;
+
+WiFiUDP ntpUDP;
+// Define NTP Client to get time
+// By default 'pool.ntp.org' is used with 60 seconds update interval and
+// You can specify the time server pool and the offset, (in seconds)
+// additionaly you can specify the update interval (in milliseconds).
+// NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600, 60000);
+NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", UTC_OFFSET);
+
+
+/******************************************************************* 
+ * Functions
+ *******************************************************************/
+
+/*
+ * Function to serial print compile date.
+ */
 void print_info() {
   Serial.println("\"Lavva kellä\"");
   Serial.print("Compiled: ");
@@ -81,6 +121,21 @@ void print_info() {
   Serial.print(" ");
   Serial.println(__DATE__);
   Serial.println("Made by Tauno Erik.");
+}
+
+/*
+ * Maintain WiFi connection
+ */
+void check_wifi() {
+  if (wifiMulti.run(WIFI_TIMEOUT) == WL_CONNECTED) {
+    // DEBUG_PRINT("\nWiFi connected: ");
+    // DEBUG_PRINT(WiFi.SSID());
+    // DEBUG_PRINT(" ");
+    // DEBUG_PRINTLN(WiFi.localIP());
+  } else {
+    delay(100);
+    Serial.println("\n--> WiFi not connected!");
+  }
 }
 
 /********************************************************************/
@@ -140,10 +195,10 @@ namespace update {
     digitalWrite(LATCH_PIN, LOW);
 
     for (uint8_t i{}; i < NUMBER_OF_7SEGS; i++) {
-      DEBUG_PRINT(" dataframe[");
-      DEBUG_PRINT(i);
-      DEBUG_PRINT("] = ");
-      DEBUG_PRINTLN(dataframe[i]);
+      // DEBUG_PRINT(" dataframe[");
+      // DEBUG_PRINT(i);
+      // DEBUG_PRINT("] = ");
+      // DEBUG_PRINTLN(dataframe[i]);
       shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, dataframe[i]);
     }
 
@@ -349,6 +404,7 @@ namespace special {
 
 }  // namespace special *********************************************/
 
+
 void setup() {
   Serial.begin(115200);
 
@@ -357,10 +413,34 @@ void setup() {
   pinMode(DATA_PIN, OUTPUT);
   pinMode(CLOCK_PIN, OUTPUT);
 
+  // Don't save WiFi configuration in flash - optional
+  WiFi.persistent(false);
+
+  // Set WiFi to station mode
+  WiFi.mode(WIFI_STA);
+
+  // Register multi WiFi networks
+  wifiMulti.addAP(Secrets::ssd1, Secrets::pass1);
+  wifiMulti.addAP(Secrets::ssd2, Secrets::pass2);
+  wifiMulti.addAP(Secrets::ssd3, Secrets::pass3);
+  wifiMulti.addAP(Secrets::ssd4, Secrets::pass4);
+
+  // NTP time
+  timeClient.begin();
+
   print_info();
 }
 
 void loop() {
+  check_wifi();
+
+  // NTP time
+  timeClient.update();
+  // Serial.println(timeClient.getFormattedTime());
+  h = timeClient.getHours();
+  m = timeClient.getMinutes();
+  s = timeClient.getSeconds();
+
   my_clock::run();
 
   update::display(dataframe);
