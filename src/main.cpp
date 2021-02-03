@@ -10,7 +10,12 @@
  *  https://taunoerik.art
  *
  *  Started: 25.01.2021
- *  Edited:  30.01.2021
+ *  Edited:  01.02.2021
+ * 
+ *  TODO:
+ *  - music
+ *  - web interface
+ *  - 
  **/
 
 /******************************************************************** 
@@ -68,7 +73,8 @@ const uint32_t UTC_OFFSET = 7200;  // seconds //long
 // NTP Terms of Service: https://www.pool.ntp.org/tos.html
 const uint32_t UPDATE_INTERVAL = 60000*59*25;  // 1min = 60000ms
 
-const int BUZZER_PIN = D1;
+const int BUZZER_PIN = D1;  // Active piezo buzzer
+
 // Shift register pins
 const int DATA_PIN  = D7;  // D0 <- does not work!
 const int LATCH_PIN = D5;
@@ -144,6 +150,24 @@ void check_wifi() {
   }
 }
 
+namespace sound {
+  /*
+   */
+  void beep() {
+    // uint32_t current_millis = millis();
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(40);
+    digitalWrite(BUZZER_PIN, LOW);
+    delay(80);
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(40);
+    digitalWrite(BUZZER_PIN, LOW);
+    delay(80);
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(40);
+    digitalWrite(BUZZER_PIN, LOW);
+  }
+}
 /********************************************************************/
 
 namespace numbers {
@@ -378,6 +402,7 @@ namespace my_clock {
       // Minutes
       if (m >= 60) {
         h++;
+        sound::beep();
         m = 0;
       }
       // Hours
@@ -435,10 +460,8 @@ void setup() {
   NTP_time.begin();
 
   print_info();
-  digitalWrite(BUZZER_PIN, HIGH);
-  delay(50);
-  digitalWrite(BUZZER_PIN, LOW);
-  //delay(50);
+  
+  sound::beep();
 }
 
 void loop() {

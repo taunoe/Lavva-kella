@@ -1,4 +1,4 @@
-# Lavva-kella
+# Lavva kellä
 Circuit Sculpture "Lavva kellä".
 
 It is a small desk clock. Once a day it synchronizes a clock with NTP time server.
