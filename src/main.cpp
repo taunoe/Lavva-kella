@@ -10,12 +10,12 @@
  *  https://taunoerik.art
  *
  *  Started: 25.01.2021
- *  Edited:  01.02.2021
+ *  Edited:  03.02.2021
  * 
  *  TODO:
  *  - music
  *  - web interface
- *  - 
+ *  - read data from web
  **/
 
 /******************************************************************** 
@@ -46,9 +46,11 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
-#include "wifi-secrets.h"  // Wifi ssid passwords
-#include <NTPClient.h>  // https://github.com/arduino-libraries/NTPClient
-#include <WiFiUdp.h>
+#include "wifi-secrets.h"       // Wifi ssid & passwords
+#include <NTPClient.h>          // https://github.com/arduino-libraries/NTPClient
+#include <WiFiUdp.h>            // NTP time
+// https://maakbaas.com/esp8266-iot-framework/logs/https-requests/
+// https://github.com/maakbaas/esp8266-iot-framework
 
 /* Enable debug Serial.print */
 #define DEBUGno
@@ -152,22 +154,15 @@ void check_wifi() {
 
 namespace sound {
   /*
+   * If we use active puzzer.
    */
-  void beep() {
+  void beep(int duration = 50) {
     // uint32_t current_millis = millis();
     digitalWrite(BUZZER_PIN, HIGH);
-    delay(40);
-    digitalWrite(BUZZER_PIN, LOW);
-    delay(80);
-    digitalWrite(BUZZER_PIN, HIGH);
-    delay(40);
-    digitalWrite(BUZZER_PIN, LOW);
-    delay(80);
-    digitalWrite(BUZZER_PIN, HIGH);
-    delay(40);
+    delay(duration);
     digitalWrite(BUZZER_PIN, LOW);
   }
-}
+}  // namespace sound
 /********************************************************************/
 
 namespace numbers {
@@ -460,7 +455,7 @@ void setup() {
   NTP_time.begin();
 
   print_info();
-  
+
   sound::beep();
 }
 
