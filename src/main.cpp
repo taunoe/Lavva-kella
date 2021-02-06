@@ -10,7 +10,7 @@
  *  https://taunoerik.art
  *
  *  Started: 25.01.2021
- *  Edited:  03.02.2021
+ *  Edited:  05.02.2021
  * 
  *  TODO:
  *  - music
@@ -96,7 +96,7 @@ uint8_t dataframe[NUMBER_OF_7SEGS] = {
 };
 
 // Clock
-const int SECOND = 1000;
+const int SECOND = 1000;  // ms
 uint32_t prev_millis {};
 boolean is_second = false;
 boolean is_clock_dots = true;  // 00:00:00
