@@ -51,6 +51,7 @@
 #include <WiFiUdp.h>            // NTP time
 // https://maakbaas.com/esp8266-iot-framework/logs/https-requests/
 // https://github.com/maakbaas/esp8266-iot-framework
+#include <ESP8266HTTPClient.h>
 
 /* Enable debug Serial.print */
 #define DEBUGno
@@ -140,15 +141,17 @@ void print_info() {
 /*
  * Maintain WiFi connection
  */
-void check_wifi() {
+bool check_wifi() {
   if (wifiMulti.run(WIFI_TIMEOUT) == WL_CONNECTED) {
     // DEBUG_PRINT("\nWiFi connected: ");
     // DEBUG_PRINT(WiFi.SSID());
     // DEBUG_PRINT(" ");
     // DEBUG_PRINTLN(WiFi.localIP());
+    return true;
   } else {
     delay(100);
     Serial.println("\n--> WiFi not connected!");
+    return false;
   }
 }
 
@@ -460,13 +463,21 @@ void setup() {
 }
 
 void loop() {
-  check_wifi();
+  bool is_wifi = check_wifi();
 
   NTP_time.update();
   // Serial.println(NTP_time.getFormattedTime());
   h = NTP_time.getHours();
   m = NTP_time.getMinutes();
   s = NTP_time.getSeconds();
+
+  // Kui oleme suveajas siis h = h + 1
+  /*
+  if (is_wifi) {
+    HTTPClient http;
+    http.begin("http://192.168.43.161:3000/api");
+  }
+  */
 
   my_clock::run();
 
