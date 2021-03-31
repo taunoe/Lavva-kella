@@ -10,12 +10,11 @@
  *  https://taunoerik.art
  *
  *  Started: 25.01.2021
- *  Edited:  05.02.2021
+ *  Edited:  31.03.2021
  * 
  *  TODO:
  *  - music
  *  - web interface
- *  - read data from web
  **/
 
 /******************************************************************** 
@@ -35,6 +34,11 @@
  *  0 - High! (Common anode!)
  *  1 - Low
  ********************************************************************/
+// https://www.arduino.cc/reference/en/language/variables/data-types/string/functions/toint/
+// https://maakbaas.com/esp8266-iot-framework/logs/https-requests/
+// https://github.com/maakbaas/esp8266-iot-framework
+// https://github.com/esp8266/Arduino/tree/master/libraries/ESP8266HTTPClient/examples
+// https://github.com/arduino-libraries/NTPClient
 
 // NTP - Network Time Protocol
 // UTC - Coordinated Universal Time.
@@ -47,25 +51,30 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
 #include "wifi-secrets.h"       // Wifi ssid & passwords
-#include <NTPClient.h>          // https://github.com/arduino-libraries/NTPClient
+#include <NTPClient.h>
 #include <WiFiUdp.h>            // NTP time
-// https://maakbaas.com/esp8266-iot-framework/logs/https-requests/
-// https://github.com/maakbaas/esp8266-iot-framework
 #include <ESP8266HTTPClient.h>
+#include <WiFiClientSecureBearSSL.h>
+//#define DEBUG
+#include "tauno_debug.h"
 
-/* Enable debug Serial.print */
-#define DEBUGno
-#ifdef DEBUG
-  #define DEBUG_PRINT(x)  Serial.print(x)
-  #define DEBUG_PRINTLN(x)  Serial.println(x)
-#else
-  #define DEBUG_PRINT(x)
-  #define DEBUG_PRINTLN(x)
-#endif
+
 
 /******************************************************************* 
  * Configurations
  *******************************************************************/
+
+// Daylight saving time
+String tauno_url = ("https://raw.githubusercontent.com/taunoe/Lavva-kella/main/is_dst.txt");
+
+// Fingerprint for the URL,
+// needs to be updated before expires: 14.04.2022
+// Open brauser in incognito mode!
+const uint8_t fingerprint[20] = {0x70, 0x94, 0xde, 0xdd, 0xe6,
+                                 0xc4, 0x69, 0x48, 0x3a, 0x92,
+                                 0x70, 0xa1, 0x48, 0x56, 0x78,
+                                 0x2d, 0x18, 0x64, 0xe0, 0xb7};
+
 
 // WiFi connect timeout per AP. Increase when connecting takes longer.
 const uint32_t WIFI_TIMEOUT = 5000;  // ms
@@ -99,17 +108,16 @@ uint8_t dataframe[NUMBER_OF_7SEGS] = {
 // Clock
 const int SECOND = 1000;  // ms
 uint32_t prev_millis {};
-boolean is_second = false;
-boolean is_clock_dots = true;  // 00:00:00
+bool is_second = false;
+bool is_clock_dots = true;  // 00:00:00
 
 int h {};  // hours
 int m {};  // minutes
 int s {};  // seconds
 
 
-/************************************
- * 
- ************************************/
+// Wifi
+bool is_wifi = false;
 
 ESP8266WiFiMulti wifiMulti;
 
@@ -127,7 +135,7 @@ NTPClient NTP_time(ntpUDP, "europe.pool.ntp.org", UTC_OFFSET, UPDATE_INTERVAL);
  *******************************************************************/
 
 /*
- * Function to serial print compile date.
+ * Serial print compile date.
  */
 void print_info() {
   Serial.println("\"Lavva kellä\"");
@@ -140,19 +148,83 @@ void print_info() {
 
 /*
  * Maintain WiFi connection
+ * Return true if wifi connected
  */
 bool check_wifi() {
   if (wifiMulti.run(WIFI_TIMEOUT) == WL_CONNECTED) {
     // DEBUG_PRINT("\nWiFi connected: ");
     // DEBUG_PRINT(WiFi.SSID());
     // DEBUG_PRINT(" ");
-    // DEBUG_PRINTLN(WiFi.localIP());
+    // (WiFi.localIP());
     return true;
   } else {
     delay(100);
     Serial.println("\n--> WiFi not connected!");
     return false;
   }
+}
+
+/*
+ *  Read web file to know daylight saving time status:
+ *  It's my manual system, not some fänsi API.
+ *  Returns 0 or 1
+ */
+int8_t web_read_dst() {
+  DEBUG_PRINTLN("web_read_dst");
+  std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
+  client->setFingerprint(fingerprint);
+  uint8_t return_value = 0;
+
+  HTTPClient https;
+
+  DEBUG_PRINT("[HTTPS] begin...\n");
+
+  if (https.begin(*client, tauno_url)) {
+    DEBUG_PRINT("[HTTPS] GET...\n");
+
+    int httpCode = https.GET();  // send HTTP header
+    if (httpCode > 0) {          // Error if negative
+      DEBUG_PRINT("httpCode: ");
+      DEBUG_PRINTLN(httpCode);
+
+      if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
+        String message = https.getString();
+        DEBUG_PRINTLN(message);
+
+        if (message.toInt() == 1) {
+          return_value = 1;
+        }
+      }
+    } else {
+      DEBUG_PRINT("httpCode: ");
+      DEBUG_PRINTLN(httpCode);
+    }
+
+    https.end();
+  } else {
+    DEBUG_PRINTLN("[HTTPS] Unable to connect\n");
+  }
+
+  return return_value;
+}
+
+/*
+ *  Manualy add daylight saving time (DST)
+ *  Input  h
+ *  Return h + DST (0 or 1)
+ */
+uint8_t add_dst(uint8_t h) {
+  uint8_t return_value = h;
+  static bool is_dst_readed = false;
+  static uint8_t value = 0;
+
+  if (!is_dst_readed) {
+    // read value
+    value = web_read_dst();
+    is_dst_readed = true;
+  }
+
+  return return_value + value;
 }
 
 namespace sound {
@@ -463,7 +535,7 @@ void setup() {
 }
 
 void loop() {
-  bool is_wifi = check_wifi();
+  is_wifi = check_wifi();
 
   NTP_time.update();
   // Serial.println(NTP_time.getFormattedTime());
@@ -471,13 +543,11 @@ void loop() {
   m = NTP_time.getMinutes();
   s = NTP_time.getSeconds();
 
-  // Kui oleme suveajas siis h = h + 1
-  /*
   if (is_wifi) {
-    HTTPClient http;
-    http.begin("http://192.168.43.161:3000/api");
+    // DEBUG_PRINTLN("is_wifi");
+    h = add_dst(h);
   }
-  */
+
 
   my_clock::run();
 
