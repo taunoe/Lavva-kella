@@ -70,10 +70,10 @@ String tauno_url = ("https://raw.githubusercontent.com/taunoe/Lavva-kella/main/i
 // Fingerprint for the URL,
 // needs to be updated before expires: 14.04.2022
 // Open brauser in incognito mode!
-const uint8_t fingerprint[20] = {0x70, 0x94, 0xde, 0xdd, 0xe6,
-                                 0xc4, 0x69, 0x48, 0x3a, 0x92,
-                                 0x70, 0xa1, 0x48, 0x56, 0x78,
-                                 0x2d, 0x18, 0x64, 0xe0, 0xb7};
+const uint8_t fingerprint[20] = {0x97, 0xD8, 0xC5, 0x70, 0x0F,
+                                 0x12, 0x24, 0x6C, 0x88, 0xBC,
+                                 0xFA, 0x06, 0x7E, 0x8C, 0xA7,
+                                 0x4D, 0xA8, 0x62, 0x67, 0x28};
 
 
 // WiFi connect timeout per AP. Increase when connecting takes longer.
